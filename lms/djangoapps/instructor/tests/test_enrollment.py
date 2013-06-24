@@ -179,18 +179,30 @@ class TestInstructorEnrollsStudent(ModuleStoreTestCase, LoginEnrollmentTestCase)
         '''
 
         course = self.course
+        
+        #Create activated, but not enrolled, user
+        UserFactory.create(username="student3_0", email="student3_0@test.com")
 
         url = reverse('instructor_dashboard', kwargs={'course_id': course.id})
-        response = self.client.post(url, {'action': 'Enroll multiple students', 'multiple_students': 'student3_1@test.com, student3_2@test.com', 'auto_enroll': 'on', 'email_students': 'on'})
+        response = self.client.post(url, {'action': 'Enroll multiple students', 'multiple_students': 'student3_0@test.com, student3_1@test.com, student3_2@test.com', 'auto_enroll': 'on', 'email_students': 'on'})
 
         #Check the page output
+        self.assertContains(response, '<td>student3_0@test.com</td>')
         self.assertContains(response, '<td>student3_1@test.com</td>')
         self.assertContains(response, '<td>student3_2@test.com</td>')
+        self.assertContains(response, '<td>added, email sent</td>')
         self.assertContains(response, '<td>user does not exist, enrollment allowed, pending with auto enrollment on, email sent</td>')
 
         #Check the outbox
-        self.assertEqual(mail.outbox[0].subject, 'You have been invited to register for MITx/999/Robot_Super_Course')
-        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(len(mail.outbox), 3)
+        self.assertEqual(mail.outbox[0].subject, 'You have been enrolled in MITx/999/Robot_Super_Course')
+
+        self.assertEqual(mail.outbox[1].subject, 'You have been invited to register for MITx/999/Robot_Super_Course')
+        self.assertEqual(mail.outbox[1].body, "Dear student,\n\nYou have been invited to join MITx/999/Robot_Super_Course at edx.org by a member of the course staff.\n\n" + \
+                                              "To finish your registration, please visit https://edx.org/register and fill out the registration form.\n" + \
+                                              "Once you have registered and activated your account, you will see MITx/999/Robot_Super_Course listed on your dashboard.\n\n" + \
+                                              "----\nThis email was automatically sent from edx.org to student3_1@test.com")
+
 
     def test_unenrollment_email_on(self):
         '''
@@ -198,9 +210,13 @@ class TestInstructorEnrollsStudent(ModuleStoreTestCase, LoginEnrollmentTestCase)
         '''
 
         course = self.course
+        
+        #Create invited, but not registered, user
+        cea = CourseEnrollmentAllowed(email='student4_0@test.com', course_id=course.id)
+        cea.save()
 
         url = reverse('instructor_dashboard', kwargs={'course_id': course.id})
-        response = self.client.post(url, {'action': 'Unenroll multiple students', 'multiple_students': 'student2@test.com, student3@test.com', 'email_students': 'on'})
+        response = self.client.post(url, {'action': 'Unenroll multiple students', 'multiple_students': 'student4_0@test.com, student2@test.com, student3@test.com', 'email_students': 'on'})
 
         #Check the page output
         self.assertContains(response, '<td>student2@test.com</td>')
@@ -208,5 +224,9 @@ class TestInstructorEnrollsStudent(ModuleStoreTestCase, LoginEnrollmentTestCase)
         self.assertContains(response, '<td>un-enrolled, email sent</td>')
 
         #Check the outbox
+        self.assertEqual(len(mail.outbox), 3)
         self.assertEqual(mail.outbox[0].subject, 'You have been un-enrolled from MITx/999/Robot_Super_Course')
-        self.assertEqual(len(mail.outbox), 2)
+  #      self.assertEqual(mail.outbox[0].body, "Dear Student,\n\nYou have been un-enrolled from course MITx/999/Robot_Super_Course by a member of the course staff. " + \
+  #                       "Please disregard the invitation previously sent.\n\n" + \
+  #                       "----\nThis email was automatically sent from edx.org to student4_0@test.com")
+        self.assertEqual(mail.outbox[1].subject, 'You have been un-enrolled from MITx/999/Robot_Super_Course')
