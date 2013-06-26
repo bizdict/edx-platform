@@ -116,6 +116,20 @@ class TestInstructorEnrollsStudent(ModuleStoreTestCase, LoginEnrollmentTestCase)
         user = User.objects.get(email='student1_2@test.com')
         ce = CourseEnrollment.objects.filter(course_id=course.id, user=user)
         self.assertEqual(1, len(ce))
+        
+        
+    def test_repeat_enroll(self):
+        '''
+        Try to enroll an already enrolled student
+        '''
+        
+        course = self.course
+        
+        url = reverse('instructor_dashboard', kwargs={'course_id': course.id})
+        response = self.client.post(url, {'action': 'Enroll multiple students', 'multiple_students': 'student0@test.com', 'auto_enroll': 'on'})
+        self.assertContains(response, '<td>student0@test.com</td>')
+        self.assertContains(response, '<td>already enrolled</td>')
+        
 
     def test_enrollmemt_new_student_autoenroll_off_email_off(self):
         '''
@@ -210,7 +224,7 @@ class TestInstructorEnrollsStudent(ModuleStoreTestCase, LoginEnrollmentTestCase)
         '''
 
         course = self.course
-        
+
         #Create invited, but not registered, user
         cea = CourseEnrollmentAllowed(email='student4_0@test.com', course_id=course.id)
         cea.save()
@@ -226,7 +240,7 @@ class TestInstructorEnrollsStudent(ModuleStoreTestCase, LoginEnrollmentTestCase)
         #Check the outbox
         self.assertEqual(len(mail.outbox), 3)
         self.assertEqual(mail.outbox[0].subject, 'You have been un-enrolled from MITx/999/Robot_Super_Course')
-  #      self.assertEqual(mail.outbox[0].body, "Dear Student,\n\nYou have been un-enrolled from course MITx/999/Robot_Super_Course by a member of the course staff. " + \
-  #                       "Please disregard the invitation previously sent.\n\n" + \
-  #                       "----\nThis email was automatically sent from edx.org to student4_0@test.com")
+        self.assertEqual(mail.outbox[0].body, "Dear Student,\n\nYou have been un-enrolled from course MITx/999/Robot_Super_Course by a member of the course staff. " + \
+                         "Please disregard the invitation previously sent.\n\n" + \
+                         "----\nThis email was automatically sent from edx.org to student4_0@test.com")
         self.assertEqual(mail.outbox[1].subject, 'You have been un-enrolled from MITx/999/Robot_Super_Course')
